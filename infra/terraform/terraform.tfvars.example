@@ -1,0 +1,9 @@
+# Skopiuj do terraform.tfvars i uzupełnij. Plik terraform.tfvars NIE trafia do repozytorium.
+subscription_id = "00000000-0000-0000-0000-000000000000"
+dns_label       = "dzielmy-twojenazwisko"
+acme_email      = "twoj.adres@example.com"
+
+# Opcjonalnie (wartości domyślne w variables.tf):
+# location = "polandcentral"
+# vm_size  = "Standard_B1s"
+# custom_domain = "dzielmy-twojenazwisko.duckdns.org"   # tylko gdy certyfikat dla cloudapp.azure.com nie zadziała

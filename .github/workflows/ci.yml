@@ -1,0 +1,123 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # 1. Lint i testy jednostkowe każdej usługi
+  unit:
+    name: Lint i testy jednostkowe (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, expense-service]
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  # 2. Testy end-to-end na całym stosie uruchomionym w Docker Compose
+  e2e:
+    name: Testy e2e (Playwright)
+    needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Uruchom aplikację (Docker Compose)
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Zainstaluj Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Testy e2e
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost
+        run: npx playwright test
+      - name: Logi kontenerów (po błędzie)
+        if: failure()
+        run: docker compose logs
+      - name: Raport Playwright (po błędzie)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+      - name: Zatrzymaj aplikację
+        if: always()
+        run: docker compose down -v
+
+  # 3. Wdrożenie na maszynę wirtualną w Azure (tylko gałąź main)
+  deploy:
+    name: Wdrożenie na Azure
+    needs: e2e
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: production
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+      VM_USER: ${{ secrets.VM_USER }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sprawdź sekrety
+        run: |
+          if [ -z "$VM_HOST" ] || [ -z "$VM_USER" ]; then
+            echo "::error::Brak sekretów VM_HOST / VM_USER / SSH_PRIVATE_KEY (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
+
+      - name: Skonfiguruj SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+
+      - name: Skopiuj pliki aplikacji na serwer
+        run: |
+          rsync -az --delete \
+            --exclude '.git' --exclude '.github' --exclude '.env' --exclude 'node_modules' \
+            --exclude 'e2e' --exclude 'infra' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ "$VM_USER@$VM_HOST:dzielmy/"
+
+      - name: Zbuduj i uruchom kontenery
+        run: |
+          ssh -i ~/.ssh/deploy_key "$VM_USER@$VM_HOST" \
+            "cd dzielmy && docker compose up -d --build --remove-orphans --wait && docker image prune -f"
+
+      - name: Smoke test po HTTPS
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "https://$VM_HOST/api/health" && curl -fsS "https://$VM_HOST/api/auth/health"; then
+              echo
+              echo "Aplikacja działa: https://$VM_HOST"
+              exit 0
+            fi
+            echo "Czekam na aplikację ($i/30)..."
+            sleep 10
+          done
+          exit 1

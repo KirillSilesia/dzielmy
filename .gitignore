@@ -1,0 +1,18 @@
+# zależności i wyniki testów
+node_modules/
+coverage/
+e2e/test-results/
+e2e/playwright-report/
+
+# sekrety – nigdy w repozytorium
+.env
+infra/terraform/terraform.tfvars
+infra/ansible/credentials/
+
+# Terraform: stan i pliki robocze (stan trzymamy lokalnie)
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+
+# generowane przez Terraform
+infra/ansible/inventory.ini

@@ -1,0 +1,65 @@
+---
+- name: Konfiguracja serwera aplikacji DzielMy
+  hosts: app
+  become: true
+  vars:
+    app_user: "{{ ansible_user }}"
+    app_dir: "/home/{{ ansible_user }}/dzielmy"
+    # Hasła są losowane przy pierwszym uruchomieniu i zapisywane lokalnie w credentials/ (poza repozytorium)
+    postgres_password: "{{ lookup('ansible.builtin.password', 'credentials/postgres_password length=32 chars=ascii_letters,digits') }}"
+    jwt_secret: "{{ lookup('ansible.builtin.password', 'credentials/jwt_secret length=64 chars=ascii_letters,digits') }}"
+
+  tasks:
+    - name: Poczekaj, aż cloud-init skończy pierwszą konfigurację maszyny
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Zainstaluj Docker, Docker Compose i rsync
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - rsync
+          - unattended-upgrades
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Włącz usługę Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Dodaj użytkownika do grupy docker (potrzebne do wdrożeń z GitHub Actions)
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        groups: docker
+        append: true
+
+    - name: Utwórz plik swap 2 GB (mała maszyna B1s ma 1 GB RAM)
+      ansible.builtin.command: >-
+        bash -c "fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile"
+      args:
+        creates: /swapfile
+
+    - name: Włączaj swap po restarcie
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+
+    - name: Utwórz katalog aplikacji
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Zapisz sekrety aplikacji w pliku .env (czytelny tylko dla właściciela)
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ app_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"

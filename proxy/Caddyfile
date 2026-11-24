@@ -1,0 +1,39 @@
+# Adres e-mail do konta ACME (powiadomienia o certyfikatach). Jeśli Let's Encrypt odmówi
+# (np. limit certyfikatów dla cloudapp.azure.com), Caddy sam spróbuje drugiego urzędu: ZeroSSL.
+{
+	email {$ACME_EMAIL}
+}
+
+# SITE_ADDRESS:
+#   :80                                         -> lokalnie i w CI (zwykłe HTTP)
+#   dzielmy-xxx.polandcentral.cloudapp.azure.com -> na serwerze; Caddy sam pobiera
+#                                                  certyfikat Let's Encrypt i włącza HTTPS
+{$SITE_ADDRESS}
+
+encode gzip
+
+header {
+	Strict-Transport-Security "max-age=31536000"
+	X-Content-Type-Options "nosniff"
+	X-Frame-Options "DENY"
+	Referrer-Policy "no-referrer"
+	Content-Security-Policy "default-src 'self'; frame-ancestors 'none'"
+	-Server
+}
+
+# /api/auth/... -> auth-service (prefiks jest obcinany)
+handle_path /api/auth/* {
+	reverse_proxy auth-service:3001
+}
+
+# /api/... -> expense-service
+handle_path /api/* {
+	reverse_proxy expense-service:3002
+}
+
+# wszystko inne -> pliki frontendu
+handle {
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

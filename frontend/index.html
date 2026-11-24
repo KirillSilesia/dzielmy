@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DzielMy – wspólne wydatki</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">DzielMy</span>
+    <span id="whoami" class="whoami" hidden>
+      <span data-testid="current-user"></span>
+      <button id="logout" class="link" type="button">Wyloguj</button>
+    </span>
+  </header>
+
+  <main>
+    <p id="message" class="message" role="status" hidden></p>
+
+    <!-- Logowanie i rejestracja -->
+    <section id="auth-view" class="card narrow" hidden>
+      <div class="tabs">
+        <button type="button" class="tab active" data-tab="login">Logowanie</button>
+        <button type="button" class="tab" data-tab="register">Rejestracja</button>
+      </div>
+      <form id="login-form">
+        <label>E-mail <input name="email" type="email" required autocomplete="email"></label>
+        <label>Hasło <input name="password" type="password" required autocomplete="current-password"></label>
+        <button type="submit">Zaloguj</button>
+      </form>
+      <form id="register-form" hidden>
+        <label>Imię <input name="name" required autocomplete="given-name"></label>
+        <label>E-mail <input name="email" type="email" required autocomplete="email"></label>
+        <label>Hasło (min. 8 znaków) <input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+        <button type="submit">Załóż konto</button>
+      </form>
+    </section>
+
+    <!-- Aplikacja -->
+    <div id="app-view" class="layout" hidden>
+      <section class="card">
+        <h2>Moje grupy</h2>
+        <ul id="group-list" class="list"></ul>
+        <form id="group-form" class="inline">
+          <input name="name" placeholder="Nazwa nowej grupy" required>
+          <button type="submit">Utwórz</button>
+        </form>
+      </section>
+
+      <section id="group-view" class="card" hidden>
+        <div class="group-head">
+          <h2 id="group-name" data-testid="group-name"></h2>
+          <span id="owner-actions">
+            <button id="rename-group" class="link" type="button">Zmień nazwę</button>
+            <button id="delete-group" class="link danger" type="button">Usuń grupę</button>
+          </span>
+        </div>
+
+        <h3>Członkowie</h3>
+        <ul id="member-list" class="chips"></ul>
+        <form id="member-form" class="inline">
+          <input name="email" type="email" placeholder="E-mail zarejestrowanej osoby" required>
+          <button type="submit">Dodaj</button>
+        </form>
+
+        <h3>Rozliczenie</h3>
+        <ul id="transfer-list" class="list" data-testid="transfers"></ul>
+
+        <h3>Wydatki</h3>
+        <table class="expenses">
+          <thead><tr><th>Opis</th><th>Kwota</th><th>Zapłacił(a)</th><th></th></tr></thead>
+          <tbody id="expense-list"></tbody>
+        </table>
+
+        <form id="expense-form" class="expense-form">
+          <h3 id="expense-form-title">Dodaj wydatek</h3>
+          <input name="description" placeholder="Opis, np. Zakupy" required>
+          <input name="amount" inputmode="decimal" placeholder="Kwota, np. 49,99" required>
+          <select name="paidBy" aria-label="Kto zapłacił"></select>
+          <span class="buttons">
+            <button type="submit">Zapisz</button>
+            <button id="cancel-edit" type="button" class="secondary" hidden>Anuluj</button>
+          </span>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
