@@ -4,7 +4,7 @@ Aplikacja webowa dla współlokatorów i uczestników wspólnych wyjazdów: grup
 i automatyczne wyliczanie, kto komu ile jest winien. Projekt zaliczeniowy z przedmiotu
 *Przetwarzanie w chmurach obliczeniowych*.
 
-- **Działająca aplikacja:** https://TWOJA-NAZWA.polandcentral.cloudapp.azure.com
+- **Działająca aplikacja:** https://dzielmy-lashuk.denmarkeast.cloudapp.azure.com
 - **Screencast:** LINK-DO-NAGRANIA
 
 ## Spełnione kryteria oceny
